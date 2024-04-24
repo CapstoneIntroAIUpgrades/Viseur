@@ -91,11 +91,6 @@
     "webpack-cli": "3.3.12",
     "webpack-dev-server": "3.11.0"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm test"
-    }
-  },
   "scripts": {
     "build": "npm run build:dev",
     "build:raw": "webpack --progress --colors",
