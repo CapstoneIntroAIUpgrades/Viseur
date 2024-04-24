@@ -130,7 +130,7 @@ export class Game extends BaseGame {
         // to remove this code and the test sprite once actually doing things
         this.resources.test.newSprite({
             container: this.layers.background,
-            position: {x: 5, y: 5},
+            position: { x: 5, y: 5 },
         });
 
         // this shows you how to render text that scales to the game
@@ -139,7 +139,7 @@ export class Game extends BaseGame {
             "This game has no\ngame logic added\nto it... yet!",
             this.layers.game,
             {
-                fill: 0xFFFFFF, // white in hexademical color format
+                fill: 0xffffff, // white in hexademical color format
             },
             1,
         );
