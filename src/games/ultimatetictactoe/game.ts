@@ -76,7 +76,9 @@ export class Game extends BaseGame {
     public readonly gameObjectClasses = GameObjectClasses;
 
     // <<-- Creer-Merge: variables -->>
-    // You can add additional member variables here
+    private Xs: PIXI.Sprite[] = new Array<PIXI.Sprite>(81);
+    private Os: PIXI.Sprite[] = new Array<PIXI.Sprite>(81);
+    private borders: PIXI.Sprite[] = new Array<PIXI.Sprite>(9);
     // <<-- /Creer-Merge: variables -->>
 
     // <<-- Creer-Merge: public-functions -->>
@@ -93,8 +95,8 @@ export class Game extends BaseGame {
     protected getSize(state: GameState): RendererSize {
         return {
             // <<-- Creer-Merge: get-size -->>
-            width: 10, // Change these. Probably read in the map's width
-            height: 10, // and height from the initial state here.
+            width: 11, // Change these. Probably read in the map's width
+            height: 11, // and height from the initial state here.
             // <<-- /Creer-Merge: get-size -->>
         };
     }
@@ -124,25 +126,49 @@ export class Game extends BaseGame {
         super.createBackground(state);
 
         // <<-- Creer-Merge: create-background -->>
-        // Initialize your background here if need be
+        for (let i = 0; i < 9; i++) {
+            for (let j = 0; j < 9; j++) {
+                this.resources.tile.newSprite({
+                    container: this.layers.background,
+                    visible: true,
+                    position: { x: i + 1, y: j + 1 },
+                });
+            }
+        }
 
-        // this is an example of how to render a sprite. You'll probably want
-        // to remove this code and the test sprite once actually doing things
-        this.resources.test.newSprite({
-            container: this.layers.background,
-            position: {x: 5, y: 5},
-        });
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                this.borders[9 * j + i] = this.resources.border.newSprite({
+                    container: this.layers.ui,
+                    visible: true,
+                    position: { x: 3 * i + 1, y: 3 * j + 1 },
+                    relativeScale: 3,
+                    tint: 0x000000,
+                });
+            }
+        }
 
-        // this shows you how to render text that scales to the game
-        // NOTE: height of 1 means 1 "unit", so probably 1 tile in height
-        this.renderer.newPixiText(
-            "This game has no\ngame logic added\nto it... yet!",
-            this.layers.game,
-            {
-                fill: 0xFFFFFF, // white in hexademical color format
-            },
-            1,
-        );
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 9; col++) {
+                this.Xs[9 * col + row] = this.resources.x.newSprite({
+                    container: this.layers.game,
+                    visible: false,
+                    position: { x: row + 1, y: col + 1 },
+                    tint: this.defaultPlayerColors[0],
+                });
+            }
+        }
+
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 9; col++) {
+                this.Os[9 * col + row] = this.resources.o.newSprite({
+                    container: this.layers.game,
+                    visible: false,
+                    position: { x: row + 1, y: col + 1 },
+                    tint: this.defaultPlayerColors[1],
+                });
+            }
+        }
         // <<-- /Creer-Merge: create-background -->>
     }
 
@@ -170,7 +196,7 @@ export class Game extends BaseGame {
         super.renderBackground(dt, current, next, delta, nextDelta);
 
         // <<-- Creer-Merge: render-background -->>
-        // update and re-render whatever you initialize in renderBackground
+
         // <<-- /Creer-Merge: render-background -->>
     }
 
@@ -194,10 +220,75 @@ export class Game extends BaseGame {
         super.stateUpdated(current, next, delta, nextDelta);
 
         // <<-- Creer-Merge: state-updated -->>
-        // update the Game based on its current and next states
+        const row_reprs = current.repString.split(" ")[0].split("/");
+
+        row_reprs.forEach((val: string, ind: number) => {
+            let offset = 0;
+            [...val].forEach((char: string, index: number) => {
+                if (char == "x") {
+                    this.Xs[9 * ind + index + offset].visible = true;
+                    this.Os[9 * ind + index + offset].visible = false;
+                } else if (char == "o") {
+                    this.Os[9 * ind + index + offset].visible = true;
+                    this.Xs[9 * ind + index + offset].visible = false;
+                } else {
+                    for (let i = 0; i < Number(char); i++) {
+                        this.Os[9 * ind + index + i + offset].visible = false;
+                        this.Xs[9 * ind + index + i + offset].visible = false;
+                    }
+                    offset += Number(char) - 1;
+                }
+            });
+        });
+
+        this.borders.forEach((sprite, index) => {
+            const row = Math.floor(index / 9);
+            const col = index % 9;
+
+            const gameStatus = this.isSubGameOver(row, col);
+            if (gameStatus === "x") {
+                sprite.tint = this.defaultPlayerColors[0].rgbNumber();
+            } else if (gameStatus === "o") {
+                sprite.tint = this.defaultPlayerColors[1].rgbNumber();
+            }
+        });
+
         // <<-- /Creer-Merge: state-updated -->>
     }
     // <<-- Creer-Merge: protected-private-functions -->>
-    // You can add additional protected/private functions here
+    protected isSubGameOver(
+        subGameRow: number,
+        subGameCol: number,
+    ): "x" | "o" | false {
+        const subGameStartIndex = 9 * (3 * subGameRow) + 3 * subGameCol;
+
+        const toCheck: [number, number][] = [
+            [0, 0],
+            [0, 1],
+            [0, 2],
+            [1, 0],
+            [1, 1],
+            [1, 2],
+            [2, 0],
+            [2, 1],
+            [2, 2],
+        ];
+
+        let xWin = true;
+        let oWin = true;
+
+        for (const coord of toCheck) {
+            if (!this.Xs[9 * coord[0] + coord[1] + subGameStartIndex].visible)
+                xWin = false;
+            if (!this.Os[9 * coord[0] + coord[1] + subGameStartIndex].visible)
+                oWin = false;
+        }
+
+        if (xWin) {
+            return "x";
+        } else if (oWin) {
+            return "o";
+        } else return false;
+    }
     // <<-- /Creer-Merge: protected-private-functions -->>
 }
