@@ -82,7 +82,6 @@ export class Game extends BaseGame {
     private arrow: PIXI.Sprite = new PIXI.Sprite();
     private Xs: PIXI.Sprite[] = new Array<PIXI.Sprite>();
     private moving_sprite: {type: "valk" | "leej" | "none" | "X", idx: number, to: {x: number, y: number}} = {type: "none", idx: 0, to: {x: 0, y: 0}};
-    private debug: PIXI.Text | undefined;
     // <<-- /Creer-Merge: variables -->>
 
     // <<-- Creer-Merge: public-functions -->>
@@ -249,14 +248,14 @@ export class Game extends BaseGame {
 
         // this shows you how to render text that scales to the game
         // NOTE: height of 1 means 1 "unit", so probably 1 tile in height
-        this.debug = this.renderer.newPixiText(
-            "Hello",
-            this.layers.game,
-            {
-                fill: 0xFFFFFF, // white in hexademical color format
-            },
-            0.25,
-        );
+        // this.debug = this.renderer.newPixiText(
+        //     "Hello",
+        //     this.layers.game,
+        //     {
+        //         fill: 0xFFFFFF, // white in hexademical color format
+        //     },
+        //     0.25,
+        // );
         // <<-- /Creer-Merge: create-background -->>
     }
 
@@ -306,10 +305,6 @@ export class Game extends BaseGame {
                     position: {x: x_pos.x, y: x_pos.y},
                     visible: false
                 }));
-            }
-
-            if (this.debug) {
-                this.debug.text = JSON.stringify(move) + " | " + JSON.stringify(moving_sprite) + " | " + current.repString;
             }
             // error: moving other player's piece
             if (moving_sprite.type != ["valk", "leej"][Number(delta.data.player.id)]) {
