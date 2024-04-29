@@ -3,7 +3,8 @@ import { createResources, load } from "src/viseur/renderer";
 /** These are the resources (sprites) that are loaded and usable by game objects in ConnectFour. */
 export const GameResources = createResources("ConnectFour", {
     // <<-- Creer-Merge: resources -->>
-    test: load("test.png"), // load files like this,
-                            // and remember to remove these lines and file!
+    yellow_piece: load("yellow.png"),
+    red_piece: load("red.png"),
+    fg_mask: load("mask.png")
     // <<-- /Creer-Merge: resources -->>
 });
