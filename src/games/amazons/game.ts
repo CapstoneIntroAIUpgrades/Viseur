@@ -106,14 +106,14 @@ export class Game extends BaseGame {
         
         repr.split(' ')[0].split('/').forEach( (rank, row_num) => {
             rank.split('').every((char, i) => {
-                if (char == 'q') {
+                if (char == 'Q') {
                     pieces.push({
                         type: "valk", 
                         x: col,
                         y: row_num
                     });
                     col++;
-                } else if ( char == 'Q') {
+                } else if ( char == 'q') {
                     pieces.push({
                         type: "leej", 
                         x: col,
@@ -285,8 +285,8 @@ export class Game extends BaseGame {
         // <<-- Creer-Merge: render-background -->>
         if (delta.type == "finished") {
             let move = delta.data.returned.split(" ").map((x) => Number(x));
-            let from = {x: move[1] + 1, y: move[0] + 1};
-            let to = {x: move[3] + 1, y: move[2] + 1};
+            let from = {x: move[1] + 1, y: 10 - move[0]};
+            let to = {x: move[3] + 1, y: 10 - move[2]};
             
             let moving_sprite = {...this.pieceAt(from.y, from.x), to: to};
             // because the sprite can move, keep a static reference to the sprite in question
@@ -297,7 +297,7 @@ export class Game extends BaseGame {
             }
 
             // it is vitally important that this be done after moving_sprite
-            let x_pos = {x: move[5] + 1, y: move[4] + 1};
+            let x_pos = {x: move[5] + 1, y: 10 - move[4]};
             
             if (this.pieceAt(x_pos.y, x_pos.x).type != "X") {
                 this.Xs.push(this.resources.x.newSprite({
