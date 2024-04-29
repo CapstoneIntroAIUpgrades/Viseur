@@ -1,7 +1,7 @@
 // This is a class to represent the Game object in the game.
 // If you want to render it in the game do so here.
 import * as Color from "color";
-import { Immutable } from "src/utils";
+import { ease, Immutable } from "src/utils";
 import { BaseGame } from "src/viseur/game";
 import { RendererSize } from "src/viseur/renderer";
 import { GameObjectClasses } from "./game-object-classes";
@@ -49,8 +49,8 @@ export class Game extends BaseGame {
      */
     public readonly defaultPlayerColors: [Color, Color] = [
         // <<-- Creer-Merge: default-player-colors -->>
-        this.defaultPlayerColors[0], // Player 0
-        this.defaultPlayerColors[1], // Player 1
+        Color('white'), // Player 0
+        Color('white'), // Player 1
         // <<-- /Creer-Merge: default-player-colors -->>
     ];
 
@@ -76,11 +76,76 @@ export class Game extends BaseGame {
     public readonly gameObjectClasses = GameObjectClasses;
 
     // <<-- Creer-Merge: variables -->>
-    // You can add additional member variables here
+    private init_repstring = "3q2q3/10/10/q8q/10/10/Q8Q/10/10/3Q2Q3 Q";
+    private valkyries: PIXI.Sprite[] = new Array<PIXI.Sprite>(4);
+    private legionaries: PIXI.Sprite[] = new Array<PIXI.Sprite>(4);
+    private arrow: PIXI.Sprite = new PIXI.Sprite();
+    private Xs: PIXI.Sprite[] = new Array<PIXI.Sprite>();
+    private moving_sprite: {type: "valk" | "leej" | "none" | "X", idx: number, to: {x: number, y: number}} = {type: "none", idx: 0, to: {x: 0, y: 0}};
+    private debug: PIXI.Text | undefined;
     // <<-- /Creer-Merge: variables -->>
 
     // <<-- Creer-Merge: public-functions -->>
-    // You can add additional public functions here
+    private pieceAt(row: number, col: number): {type: "valk" | "leej" | "none" | "X", idx: number} {
+        let piece: {type: "valk" | "leej" | "none" | "X", idx: number} = {type: "none", idx: 0}
+        this.valkyries.forEach((valk, idx) => {
+            if ( Math.abs(valk.x - col) < 0.1 && Math.abs(valk.y - row) < 0.1 ) {piece = {type: "valk", idx: idx};}
+        });
+        this.legionaries.forEach((leej, idx) => {
+            if ( Math.abs(leej.x - col) < 0.1 && Math.abs(leej.y - row) < 0.1 ) {piece = {type: "leej", idx: idx};}
+        });
+        this.Xs.forEach((x, idx) => {
+            if ( Math.abs(x.x - col) < 0.1 && Math.abs(x.y - row) < 0.1 ) {piece = {type: "X", idx: idx};}
+        });
+        return piece;
+    }
+
+    private pieceList(repString: string): {type: string, x: number, y: number}[] {
+        let col = 0;
+        let pieces: {type: string, x: number, y: number}[] = [];
+        let repr = repString.length > 0 ? repString : this.init_repstring;
+        
+        repr.split(' ')[0].split('/').forEach( (rank, row_num) => {
+            rank.split('').every((char, i) => {
+                if (char == 'q') {
+                    pieces.push({
+                        type: "valk", 
+                        x: col,
+                        y: row_num
+                    });
+                    col++;
+                } else if ( char == 'Q') {
+                    pieces.push({
+                        type: "leej", 
+                        x: col,
+                        y: row_num
+                    });
+                    col++;
+                } else if ( char == 'X') {
+                    pieces.push({
+                        type: "X", 
+                        x: col,
+                        y: row_num
+                    });
+                    col++;
+                } else if (Number(char)) {
+                    // this logic is dumb and only works cuz the board isn't more than 10 wide
+                    if (char == '1' && rank[i+1] == '0') {
+                        col = 0;
+                        return false;
+                    } else {
+                        col += Number(char);
+                    }
+                } else {
+                    col++;
+                }
+                return true;
+            });
+        });
+        return pieces;
+    }
+
+
     // <<-- /Creer-Merge: public-functions -->>
 
     /**
@@ -93,8 +158,8 @@ export class Game extends BaseGame {
     protected getSize(state: GameState): RendererSize {
         return {
             // <<-- Creer-Merge: get-size -->>
-            width: 10, // Change these. Probably read in the map's width
-            height: 10, // and height from the initial state here.
+            width: 12, // Change these. Probably read in the map's width
+            height: 12, // and height from the initial state here.
             // <<-- /Creer-Merge: get-size -->>
         };
     }
@@ -108,9 +173,36 @@ export class Game extends BaseGame {
      */
     protected start(state: GameState): void {
         super.start(state);
-
         // <<-- Creer-Merge: start -->>
-        // Initialize your variables here
+        let pieces = this.pieceList(state.repString);
+        let valks = pieces.filter((p) => {return p.type == "valk";});
+        let leejs = pieces.filter((p) => {return p.type == "leej";});
+        for (let i = 0; i < valks.length; i++) {
+            this.valkyries[i] = this.resources.valkyrie.newSprite({
+                container: this.layers.game,
+                position: {x: valks[i].x + 1, y: valks[i].y + 1},
+                anchor: {x: 0.175, y: 0.4}
+            });
+            this.valkyries[i].scale.x *= 1.5;
+            this.valkyries[i].scale.y *= 1.5;
+        }
+        for (let i = 0; i < leejs.length; i++) {
+            this.legionaries[i] = this.resources.legionary.newSprite({
+                container: this.layers.game,
+                position: {x: leejs[i].x + 1, y: leejs[i].y + 1},
+                anchor: {x: 0.175, y: 0.4}
+            });
+            this.legionaries[i].scale.y *= 1.5;
+            this.legionaries[i].scale.x *= 1.5;
+        }
+        this.arrow = this.resources.arrow.newSprite({
+            container: this.layers.game,
+            position: {x: 0, y: 0},
+            visible: false,
+            anchor: 0.5
+        });
+        this.arrow.scale.x *= 0.5;
+        this.arrow.scale.y *= 0.5;
         // <<-- /Creer-Merge: start -->>
     }
 
@@ -126,22 +218,44 @@ export class Game extends BaseGame {
         // <<-- Creer-Merge: create-background -->>
         // Initialize your background here if need be
 
-        // this is an example of how to render a sprite. You'll probably want
-        // to remove this code and the test sprite once actually doing things
-        this.resources.test.newSprite({
-            container: this.layers.background,
-            position: {x: 5, y: 5},
-        });
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j++) {
+                let tile;
+                if (j % 2 == i % 2) {
+                    let grass_options = [
+                        this.resources.grass_plain,
+                        this.resources.grass_flipped
+                    ];
+                    let rnd = Math.floor(Math.random() * grass_options.length);
+                    tile = grass_options[rnd];
+                } else {
+                    let earth_options = [
+                        this.resources.earth_cracky,
+                        this.resources.earth_pebbly,
+                        this.resources.earth_plain1,
+                        this.resources.earth_plain2,
+                        this.resources.earth_weedy,
+                        this.resources.earth_rocky
+                    ];
+                    let rnd = Math.floor(Math.random() * earth_options.length);
+                    tile = earth_options[rnd];
+                }
+                tile?.newSprite({
+                    container: this.layers.background,
+                    position: {x: i + 1, y: j + 1},
+                });
+            }
+        }
 
         // this shows you how to render text that scales to the game
         // NOTE: height of 1 means 1 "unit", so probably 1 tile in height
-        this.renderer.newPixiText(
-            "This game has no\ngame logic added\nto it... yet!",
+        this.debug = this.renderer.newPixiText(
+            "Hello",
             this.layers.game,
             {
                 fill: 0xFFFFFF, // white in hexademical color format
             },
-            1,
+            0.25,
         );
         // <<-- /Creer-Merge: create-background -->>
     }
@@ -170,7 +284,75 @@ export class Game extends BaseGame {
         super.renderBackground(dt, current, next, delta, nextDelta);
 
         // <<-- Creer-Merge: render-background -->>
-        // update and re-render whatever you initialize in renderBackground
+        if (delta.type == "finished") {
+            let move = delta.data.returned.split(" ").map((x) => Number(x));
+            let from = {x: move[1] + 1, y: move[0] + 1};
+            let to = {x: move[3] + 1, y: move[2] + 1};
+            
+            let moving_sprite = {...this.pieceAt(from.y, from.x), to: to};
+            // because the sprite can move, keep a static reference to the sprite in question
+            if (moving_sprite.type == "none" || moving_sprite.type == "X") {
+                moving_sprite = this.moving_sprite;
+            } else {
+                this.moving_sprite = moving_sprite;
+            }
+
+            // it is vitally important that this be done after moving_sprite
+            let x_pos = {x: move[5] + 1, y: move[4] + 1};
+            
+            if (this.pieceAt(x_pos.y, x_pos.x).type != "X") {
+                this.Xs.push(this.resources.x.newSprite({
+                    container: this.layers.game,
+                    position: {x: x_pos.x, y: x_pos.y},
+                    visible: false
+                }));
+            }
+
+            if (this.debug) {
+                this.debug.text = JSON.stringify(move) + " | " + JSON.stringify(moving_sprite) + " | " + current.repString;
+            }
+            // error: moving other player's piece
+            if (moving_sprite.type != ["valk", "leej"][Number(delta.data.player.id)]) {
+                return;
+            }
+            if (dt < 0.5) {
+                let piece: PIXI.Sprite | undefined;
+                if ( moving_sprite.type == "valk" ) {
+                    piece = this.valkyries[moving_sprite.idx];
+                } else if ( moving_sprite.type == "leej" ) {
+                    piece = this.legionaries[moving_sprite.idx];
+                }
+                if ( piece ) {
+                    piece.x = ease(from.x, to.x, dt*2);
+                    piece.y = ease(from.y, to.y, dt*2);
+                }
+            } else if (dt > 0.5 && dt < 0.95) {
+                this.arrow.visible = true;
+                this.arrow.rotation = Math.atan2((x_pos.y - to.y), (x_pos.x - to.x));
+                this.arrow.x = ease( to.x+0.5, x_pos.x+0.5, (dt-0.5) * 2);
+                this.arrow.y = ease( to.y+0.5, x_pos.y+0.5, (dt-0.5) * 2);        
+            } else {
+                this.arrow.visible = false;
+                this.Xs[this.pieceAt(x_pos.y, x_pos.x).idx].visible = true;
+            }
+        } else if (delta.type == "order") {
+            // variable framerate messes with state
+            // thankfully each "finished" delta is followed by and "order"
+            if (this.Xs.length > 0) {
+                this.Xs[this.Xs.length - 1].visible = true;
+            }
+            if (this.moving_sprite.type != "none") {
+                let sprite = (
+                    this.moving_sprite.type == "valk" ? 
+                    this.valkyries : 
+                    this.legionaries
+                )[this.moving_sprite.idx];
+                sprite.x = this.moving_sprite.to.x;
+                sprite.y = this.moving_sprite.to.y;
+            }
+        }
+
+
         // <<-- /Creer-Merge: render-background -->>
     }
 
@@ -194,7 +376,7 @@ export class Game extends BaseGame {
         super.stateUpdated(current, next, delta, nextDelta);
 
         // <<-- Creer-Merge: state-updated -->>
-        // update the Game based on its current and next states
+       
         // <<-- /Creer-Merge: state-updated -->>
     }
     // <<-- Creer-Merge: protected-private-functions -->>
