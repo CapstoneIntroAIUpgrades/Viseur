@@ -1,7 +1,7 @@
 // This is a class to represent the Game object in the game.
 // If you want to render it in the game do so here.
 import * as Color from "color";
-import { ease, Immutable } from "src/utils";
+import { Immutable } from "src/utils";
 import { BaseGame } from "src/viseur/game";
 import { RendererSize } from "src/viseur/renderer";
 import { GameObjectClasses } from "./game-object-classes";
@@ -9,7 +9,6 @@ import { HumanPlayer } from "./human-player";
 import { GameResources } from "./resources";
 import { GameSettings } from "./settings";
 import { ConnectFourDelta, GameState } from "./state-interfaces";
-import { quadIn } from "eases";
 
 // <<-- Creer-Merge: imports -->>
 // any additional imports you want can be added here safely between Creer runs
@@ -77,12 +76,28 @@ export class Game extends BaseGame {
     public readonly gameObjectClasses = GameObjectClasses;
 
     // <<-- Creer-Merge: variables -->>
-    private dropped_piece : {sprite: PIXI.Sprite | undefined, to: {x: number, y: number}} 
-        = {sprite: undefined, to: {x: 0, y: 0}};
+    //private dropped_piece : {sprite: PIXI.Sprite | undefined, to: {x: number, y: number}} 
+    //    = {sprite: undefined, to: {x: 0, y: 0}};
     private board: PIXI.Sprite[][] = [];
+    // private debug: PIXI.Text | undefined;
     // <<-- /Creer-Merge: variables -->>
 
     // <<-- Creer-Merge: public-functions -->>
+    private parseRepstring (rep: string): string[][] {
+        let board: string[][] = [[],[],[],[],[],[]];
+        rep.split(" ")[0].split("/").forEach((row, row_idx) => {
+            row.split("").forEach((char) => {
+                if (Number(char)) {
+                    for (let i = 0; i<Number(char); i++) {
+                        board[row_idx].push("");
+                    }
+                } else {
+                    board[row_idx].push(char);
+                }
+            });
+        });
+        return board;
+    }
     // <<-- /Creer-Merge: public-functions -->>
 
     /**
@@ -125,20 +140,27 @@ export class Game extends BaseGame {
     * @param state - The initial state to use the render the background.
     */
    protected createBackground(state: GameState): void {
-       super.createBackground(state);
+        super.createBackground(state);
 
-       // <<-- Creer-Merge: create-background -->>
-       // Initialize your background here if need be
+        // <<-- Creer-Merge: create-background -->>
+        // Initialize your background here if need be
        
-       for (let row = 1; row <= 6; row++) {
-           for (let col = 1; col <= 7; col++) {
-               this.resources.fg_mask.newSprite({
-                   container: this.layers.background,
-                   position: {x: col, y: row}
-               });
-           }
-       }
-       
+        for (let row = 1; row <= 6; row++) {
+            for (let col = 1; col <= 7; col++) {
+                this.resources.fg_mask.newSprite({
+                    container: this.layers.background,
+                    position: {x: col, y: row}
+                });
+            }
+        }
+        // this.debug = this.renderer.newPixiText(
+        //     "Hello",
+        //     this.layers.game,
+        //     {
+        //         fill: 0xFFFFFF, // white in hexademical color format
+        //     },
+        //     0.25,
+        // );
         // <<-- /Creer-Merge: create-background -->>
     }
 
@@ -166,41 +188,70 @@ export class Game extends BaseGame {
         super.renderBackground(dt, current, next, delta, nextDelta);
 
         // <<-- Creer-Merge: render-background -->>
+        
+        // rewind support. only show pieces that are supposed to exist
+        //      in this frame
+        let repr = this.parseRepstring(current.repString);
+        this.board.forEach((row, row_i) => {
+            row.forEach((sprite, col_i) => {
+                if (sprite) {
+                    sprite.visible = (repr[row_i][col_i] != "");
+                }
+            });
+        });
         if (delta.type == "finished") {
+            // find where the piece is falling to
+            let cell = {x: Number(delta.data.returned), y: 0}
+            let to = {x: cell.x + 1, y: 0};
+            repr.every((row, i) => {
+                if (row[Number(delta.data.returned)] == "") {
+                    to.y = 6 - i;
+                    cell.y = i;
+                    return false;
+                }
+                return true;
+            });
+            
+            // add sprite for this piece if it doesn't yet exist
             let from = {x: Number(delta.data.returned)+1, y: 0};
-            if (!this.dropped_piece.sprite) { 
-                const color = ["r", "y"][Number(delta.data.player.id)];
-                if (color == "r") {
-                    this.dropped_piece.sprite = this.resources.red_piece.newSprite({
+            const piece_color = current.repString.split(" ")[1];
+            if (!this.board[cell.y][cell.x]) {
+                if (piece_color == "r") {
+                    this.board[cell.y][cell.x] = this.resources.red_piece.newSprite({
                         container: this.layers.game,
                         position: from
                     });
-                } else if (color == "y") {
-                    this.dropped_piece.sprite = this.resources.yellow_piece.newSprite({
+                } else if (piece_color == "y") {
+                    this.board[cell.y][cell.x] = this.resources.yellow_piece.newSprite({
                         container: this.layers.game,
                         position: from
                     });
                 }
-                this.board.every((row, i) => {
-                    if (!row[Number(delta.data.returned)]) {
-                        row[Number(delta.data.returned)] = this.dropped_piece.sprite as PIXI.Sprite;
-                        this.dropped_piece.to.y = 6 - i;
-                        return false;
-                    }
-                    return true;
-                });
-                this.dropped_piece.to.x = from.x;
             }
-            if (this.dropped_piece.sprite) {
-                this.dropped_piece.sprite.x = ease(from.x, this.dropped_piece.to.x, dt);
-                this.dropped_piece.sprite.y = ease(from.y, this.dropped_piece.to.y, dt, quadIn);
+            
+            // draw sprite animation
+            if (dt == 0) {
+                this.board[cell.y][cell.x].visible = false;
+            } else {
+                this.board[cell.y][cell.x].visible = true;
+                // bouncy!
+                const damping = 30;
+                const bounces = 3;
+                this.board[cell.y][cell.x].y = 
+                    (from.y - to.y) * 
+                    Math.abs(Math.cos(dt * Math.PI * (bounces + 0.5))) /
+                    (1 + damping * dt) +
+                    to.y;
             }
+            
         } else if (delta.type == "order") {
-            if (this.dropped_piece.sprite) {
-                this.dropped_piece.sprite.x = this.dropped_piece.to.x;
-                this.dropped_piece.sprite.y = this.dropped_piece.to.y;
-                this.dropped_piece = {sprite: undefined, to: {x: 0, y: 0}}
-            }
+            // set pieces in final resting place
+            this.board.forEach((row, row_idx) => {
+                row.forEach((sprite, col_idx) => {
+                    sprite.x = col_idx+1;
+                    sprite.y = 6 - row_idx;
+                });
+            });
         }
         // <<-- /Creer-Merge: render-background -->>
     }
