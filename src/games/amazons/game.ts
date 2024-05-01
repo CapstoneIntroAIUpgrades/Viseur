@@ -81,7 +81,7 @@ export class Game extends BaseGame {
     private legionaries: PIXI.Sprite[] = new Array<PIXI.Sprite>(4);
     private arrow: PIXI.Sprite = new PIXI.Sprite();
     private Xs: PIXI.Sprite[] = new Array<PIXI.Sprite>();
-    private moving_sprite: {type: "valk" | "leej" | "none" | "X", idx: number, to: {x: number, y: number}} = {type: "none", idx: 0, to: {x: 0, y: 0}};
+    // private debug: PIXI.Text | undefined;
     // <<-- /Creer-Merge: variables -->>
 
     // <<-- Creer-Merge: public-functions -->>
@@ -100,11 +100,11 @@ export class Game extends BaseGame {
     }
 
     private pieceList(repString: string): {type: string, x: number, y: number}[] {
-        let col = 0;
         let pieces: {type: string, x: number, y: number}[] = [];
         let repr = repString.length > 0 ? repString : this.init_repstring;
         
         repr.split(' ')[0].split('/').forEach( (rank, row_num) => {
+            let col = 0;
             rank.split('').every((char, i) => {
                 if (char == 'Q') {
                     pieces.push({
@@ -122,7 +122,7 @@ export class Game extends BaseGame {
                     col++;
                 } else if ( char == 'X') {
                     pieces.push({
-                        type: "X", 
+                        type: "X",
                         x: col,
                         y: row_num
                     });
@@ -130,7 +130,6 @@ export class Game extends BaseGame {
                 } else if (Number(char)) {
                     // this logic is dumb and only works cuz the board isn't more than 10 wide
                     if (char == '1' && rank[i+1] == '0') {
-                        col = 0;
                         return false;
                     } else {
                         col += Number(char);
@@ -179,7 +178,7 @@ export class Game extends BaseGame {
         for (let i = 0; i < valks.length; i++) {
             this.valkyries[i] = this.resources.valkyrie.newSprite({
                 container: this.layers.game,
-                position: {x: valks[i].x + 1, y: valks[i].y + 1},
+                position: {x: valks[i].x + 1, y: 10 - valks[i].y},
                 anchor: {x: 0.175, y: 0.4}
             });
             this.valkyries[i].scale.x *= 1.5;
@@ -188,7 +187,7 @@ export class Game extends BaseGame {
         for (let i = 0; i < leejs.length; i++) {
             this.legionaries[i] = this.resources.legionary.newSprite({
                 container: this.layers.game,
-                position: {x: leejs[i].x + 1, y: leejs[i].y + 1},
+                position: {x: leejs[i].x + 1, y: 10 - leejs[i].y},
                 anchor: {x: 0.175, y: 0.4}
             });
             this.legionaries[i].scale.y *= 1.5;
@@ -246,8 +245,6 @@ export class Game extends BaseGame {
             }
         }
 
-        // this shows you how to render text that scales to the game
-        // NOTE: height of 1 means 1 "unit", so probably 1 tile in height
         // this.debug = this.renderer.newPixiText(
         //     "Hello",
         //     this.layers.game,
@@ -283,71 +280,86 @@ export class Game extends BaseGame {
         super.renderBackground(dt, current, next, delta, nextDelta);
 
         // <<-- Creer-Merge: render-background -->>
+        
+        let move: number[];
+        let from: {x: number, y: number} = {x: 0, y: 0};
+        let to: {x: number, y: number} = {x: 0, y: 0};
+        let x_pos: {x: number, y: number} = {x: 0, y: 0};
         if (delta.type == "finished") {
-            let move = delta.data.returned.split(" ").map((x) => Number(x));
-            let from = {x: move[1] + 1, y: 10 - move[0]};
-            let to = {x: move[3] + 1, y: 10 - move[2]};
-            
-            let moving_sprite = {...this.pieceAt(from.y, from.x), to: to};
-            // because the sprite can move, keep a static reference to the sprite in question
-            if (moving_sprite.type == "none" || moving_sprite.type == "X") {
-                moving_sprite = this.moving_sprite;
+            move = delta.data.returned.split(" ").map((x) => Number(x));
+            // the game logic primarily deals with screen coordinates
+            // the move data deals with board coords. converts here
+            from = {x: move[1] + 1, y: 10 - move[0]};
+            to = {x: move[3] + 1, y: 10 - move[2]};
+            x_pos = {x: move[5] + 1, y: 10 - move[4]};
+        }
+        let pieces = this.pieceList(current.repString);
+        let valks = pieces.filter((p) => {return p.type == "valk";});
+        let leejs = pieces.filter((p) => {return p.type == "leej";});
+        let Xs = pieces.filter((p) => {return p.type == "X";});
+        valks.forEach((valk, idx) => {
+            if (delta.type == "finished" && (valk.x + 1) == from.x && (valk.y + 1) == from.y) {
+                // if (this.debug) {
+                //     this.debug.text = "valk move: " + JSON.stringify(move) + " | " + current.repString;
+                // }
+                this.valkyries[idx].x = ease(from.x, to.x, Math.min(dt*2,1));
+                this.valkyries[idx].y = ease(from.y, to.y, Math.min(dt*2,1));
             } else {
-                this.moving_sprite = moving_sprite;
+                this.valkyries[idx].x = valk.x + 1;
+                this.valkyries[idx].y = valk.y + 1;
             }
-
-            // it is vitally important that this be done after moving_sprite
-            let x_pos = {x: move[5] + 1, y: 10 - move[4]};
-            
-            if (this.pieceAt(x_pos.y, x_pos.x).type != "X") {
+        });
+        leejs.forEach((leej, idx) => {
+            if (delta.type == "finished" && (leej.x + 1) == from.x && (leej.y + 1) == from.y) {
+                // if (this.debug) {
+                //     this.debug.text = "leej move: " + JSON.stringify(move) + " | " + current.repString;
+                // }
+                this.legionaries[idx].x = ease(from.x, to.x, Math.min(dt*2,1));
+                this.legionaries[idx].y = ease(from.y, to.y, Math.min(dt*2,1));
+            } else {
+                this.legionaries[idx].x = 1 + leej.x;
+                this.legionaries[idx].y = 1 + leej.y;
+            }
+        });
+        Xs.forEach((X, idx) => {
+            if (idx < this.Xs.length) {
+                this.Xs[idx].x = X.x + 1;
+                this.Xs[idx].y = X.y + 1;
+                this.Xs[idx].visible = true;
+            } else {
                 this.Xs.push(this.resources.x.newSprite({
                     container: this.layers.game,
-                    position: {x: x_pos.x, y: x_pos.y},
-                    visible: false
+                    position: {x: X.x + 1, y: 1 + X.y},
+                    visible: true
                 }));
             }
-            // error: moving other player's piece
-            if (moving_sprite.type != ["valk", "leej"][Number(delta.data.player.id)]) {
-                return;
+        });
+        if (this.Xs.length > Xs.length) {
+            for (let i = Xs.length; i < this.Xs.length; i++) {
+                this.Xs[i].visible = false;
             }
-            if (dt < 0.5) {
-                let piece: PIXI.Sprite | undefined;
-                if ( moving_sprite.type == "valk" ) {
-                    piece = this.valkyries[moving_sprite.idx];
-                } else if ( moving_sprite.type == "leej" ) {
-                    piece = this.legionaries[moving_sprite.idx];
-                }
-                if ( piece ) {
-                    piece.x = ease(from.x, to.x, dt*2);
-                    piece.y = ease(from.y, to.y, dt*2);
-                }
-            } else if (dt > 0.5 && dt < 0.95) {
+        }
+        if (delta.type == "finished") {
+            if (dt > 0.5) {
                 this.arrow.visible = true;
                 this.arrow.rotation = Math.atan2((x_pos.y - to.y), (x_pos.x - to.x));
                 this.arrow.x = ease( to.x+0.5, x_pos.x+0.5, (dt-0.5) * 2);
-                this.arrow.y = ease( to.y+0.5, x_pos.y+0.5, (dt-0.5) * 2);        
-            } else {
-                this.arrow.visible = false;
-                this.Xs[this.pieceAt(x_pos.y, x_pos.x).idx].visible = true;
+                this.arrow.y = ease( to.y+0.5, x_pos.y+0.5, (dt-0.5) * 2); 
             }
-        } else if (delta.type == "order") {
-            // variable framerate messes with state
-            // thankfully each "finished" delta is followed by and "order"
-            if (this.Xs.length > 0) {
-                this.Xs[this.Xs.length - 1].visible = true;
+            if (dt > 0.9) {
+                if (this.pieceAt(x_pos.y, x_pos.x).type != "X") {
+                    this.Xs.push(this.resources.x.newSprite({
+                        container: this.layers.game,
+                        position: {x: x_pos.x, y: x_pos.y},
+                        visible: true
+                    }));
+                } else {
+                    this.Xs[this.pieceAt(x_pos.y, x_pos.x).idx].visible = true;
+                }
             }
-            if (this.moving_sprite.type != "none") {
-                let sprite = (
-                    this.moving_sprite.type == "valk" ? 
-                    this.valkyries : 
-                    this.legionaries
-                )[this.moving_sprite.idx];
-                sprite.x = this.moving_sprite.to.x;
-                sprite.y = this.moving_sprite.to.y;
-            }
+        } else {
+            this.arrow.visible = false;
         }
-
-
         // <<-- /Creer-Merge: render-background -->>
     }
 
