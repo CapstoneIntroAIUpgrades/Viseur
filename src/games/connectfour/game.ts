@@ -189,13 +189,25 @@ export class Game extends BaseGame {
 
         // <<-- Creer-Merge: render-background -->>
         
-        // rewind support. only show pieces that are supposed to exist
-        //      in this frame
+        // ff/rw support. create pieces that don't exist yet, hide ones that shouldn't
         let repr = this.parseRepstring(current.repString);
-        this.board.forEach((row, row_i) => {
-            row.forEach((sprite, col_i) => {
+        repr.forEach((row, row_i) => {
+            row.forEach((piece, col_i) => {
+                let sprite = this.board[row_i][col_i];
                 if (sprite) {
                     sprite.visible = (repr[row_i][col_i] != "");
+                    sprite.x = col_i + 1;
+                    sprite.y = 6 - row_i;
+                } else if (piece == "y") {
+                    this.board[row_i][col_i] = this.resources.yellow_piece.newSprite({
+                        container: this.layers.game,
+                        position: {x: col_i + 1, y: 6 - row_i}
+                    });
+                } else if (piece == "r") {
+                    this.board[row_i][col_i] = this.resources.red_piece.newSprite({
+                        container: this.layers.game,
+                        position: {x: col_i + 1, y: 6 - row_i}
+                    });
                 }
             });
         });
