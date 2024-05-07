@@ -197,16 +197,16 @@ export class Game extends BaseGame {
                 if (sprite) {
                     sprite.visible = (repr[row_i][col_i] != "");
                     sprite.x = col_i + 1;
-                    sprite.y = 6 - row_i;
+                    sprite.y = row_i + 1;
                 } else if (piece == "y") {
                     this.board[row_i][col_i] = this.resources.yellow_piece.newSprite({
                         container: this.layers.game,
-                        position: {x: col_i + 1, y: 6 - row_i}
+                        position: {x: col_i + 1, y: row_i + 1}
                     });
                 } else if (piece == "r") {
                     this.board[row_i][col_i] = this.resources.red_piece.newSprite({
                         container: this.layers.game,
-                        position: {x: col_i + 1, y: 6 - row_i}
+                        position: {x: col_i + 1, y: row_i + 1}
                     });
                 }
             });
@@ -215,14 +215,13 @@ export class Game extends BaseGame {
             // find where the piece is falling to
             let cell = {x: Number(delta.data.returned), y: 0}
             let to = {x: cell.x + 1, y: 0};
-            repr.every((row, i) => {
-                if (row[Number(delta.data.returned)] == "") {
-                    to.y = 6 - i;
+            for (let i = 5; i >= 0; i--) {
+                if (repr[i][Number(delta.data.returned)] == "") {
+                    to.y = i+1;
                     cell.y = i;
-                    return false;
+                    break;
                 }
-                return true;
-            });
+            }
             
             // add sprite for this piece if it doesn't yet exist
             let from = {x: Number(delta.data.returned)+1, y: 0};
@@ -261,7 +260,7 @@ export class Game extends BaseGame {
             this.board.forEach((row, row_idx) => {
                 row.forEach((sprite, col_idx) => {
                     sprite.x = col_idx+1;
-                    sprite.y = 6 - row_idx;
+                    sprite.y = row_idx+1;
                 });
             });
         }
