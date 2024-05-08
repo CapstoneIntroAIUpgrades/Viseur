@@ -213,10 +213,11 @@ export class Game extends BaseGame {
         });
         if (delta.type == "finished") {
             // find where the piece is falling to
-            let cell = {x: Number(delta.data.returned), y: 0}
+            let move = "abcdefg".indexOf(delta.data.returned);
+            let cell = {x: move, y: 0}
             let to = {x: cell.x + 1, y: 0};
             for (let i = 5; i >= 0; i--) {
-                if (repr[i][Number(delta.data.returned)] == "") {
+                if (repr[i][move] == "") {
                     to.y = i+1;
                     cell.y = i;
                     break;
@@ -224,7 +225,7 @@ export class Game extends BaseGame {
             }
             
             // add sprite for this piece if it doesn't yet exist
-            let from = {x: Number(delta.data.returned)+1, y: 0};
+            let from = {x: move+1, y: 0};
             const piece_color = current.repString.split(" ")[1];
             if (!this.board[cell.y][cell.x]) {
                 if (piece_color == "r") {

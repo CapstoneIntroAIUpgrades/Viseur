@@ -281,17 +281,30 @@ export class Game extends BaseGame {
 
         // <<-- Creer-Merge: render-background -->>
         
-        let move: number[];
+        let move: number[] = [];
         let from: {x: number, y: number} = {x: 0, y: 0};
         let to: {x: number, y: number} = {x: 0, y: 0};
         let x_pos: {x: number, y: number} = {x: 0, y: 0};
         if (delta.type == "finished") {
-            move = delta.data.returned.split(" ").map((x) => Number(x));
+            for (let i = 0; i < delta.data.returned.length; ) {
+                if ("abcdefghij".indexOf(delta.data.returned[i]) > -1) {
+                    move.push("abcdefghij".indexOf(delta.data.returned[i]));
+                    i++;
+                } else {
+                    let row = 0;
+                    while (!Number.isNaN(Number(delta.data.returned[i])) && i < delta.data.returned.length) {
+                        row *= 10;
+                        row += Number(delta.data.returned[i]);
+                        i++;
+                    }
+                    move.push(row - 1);
+                }
+            }
             // the game logic primarily deals with screen coordinates
             // the move data deals with board coords. converts here
-            from = {x: move[1] + 1, y: 10 - move[0]};
-            to = {x: move[3] + 1, y: 10 - move[2]};
-            x_pos = {x: move[5] + 1, y: 10 - move[4]};
+            from = {x: move[0] + 1, y: 10 - move[1]};
+            to = {x: move[2] + 1, y: 10 - move[3]};
+            x_pos = {x: move[4] + 1, y: 10 - move[5]};
         }
         let pieces = this.pieceList(current.repString);
         let valks = pieces.filter((p) => {return p.type == "valk";});
